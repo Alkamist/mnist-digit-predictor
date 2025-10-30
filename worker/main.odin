@@ -1,9 +1,12 @@
 package main
 
+import "core:c"
 import "core:os"
 import "core:log"
 import "core:time"
 import "core:slice"
+import "core:strings"
+import "core:strconv"
 import "core:encoding/json"
 
 import amqp "rabbitmq"
@@ -24,7 +27,7 @@ Prediction_Response :: struct {
 	probabilities: [MNIST_CLASS_COUNT]f32,
 }
 
-try_connect :: proc() -> (connection: amqp.connection_state_t, ok: bool) {
+try_connect :: proc(user, pass, host, port: string) -> (connection: amqp.connection_state_t, ok: bool) {
 	connection = amqp.new_connection()
 	defer if !ok {
 		amqp.destroy_connection(connection)
@@ -36,13 +39,28 @@ try_connect :: proc() -> (connection: amqp.connection_state_t, ok: bool) {
 		return
 	}
 
-	status := amqp.socket_open(socket, HOST, PORT)
+	host_cstring := strings.clone_to_cstring(host)
+	defer delete(host_cstring)
+
+	port_int, port_ok := strconv.parse_int(port, 10)
+	if !port_ok {
+		log.error("Port entry is not a valid integer")
+		return
+	}
+
+	status := amqp.socket_open(socket, host_cstring, c.int(port_int))
 	if status != .OK {
 		log.error("Failed to open TCP socket")
 		return
 	}
 
-	login_reply := amqp.login(connection, "/", 0, 131072, 0, .PLAIN, "guest", "guest")
+	user_cstring := strings.clone_to_cstring(user)
+	defer delete(user_cstring)
+
+	pass_cstring := strings.clone_to_cstring(pass)
+	defer delete(pass_cstring)
+
+	login_reply := amqp.login(connection, "/", 0, 131072, 0, .PLAIN, user_cstring, pass_cstring)
 	if login_reply.reply_type != .NORMAL {
 		log.errorf("Failed to login to RabbitMQ server: %v", login_reply)
 		return
@@ -57,11 +75,16 @@ main :: proc() {
 
 	context.logger = log.create_console_logger()
 
+	user := os.lookup_env("RABBITMQ_USER") or_else "guest"
+	pass := os.lookup_env("RABBITMQ_PASS") or_else "guest"
+	host := os.lookup_env("RABBITMQ_HOST") or_else "rabbitmq"
+	port := os.lookup_env("RABBITMQ_PORT") or_else "5672"
+
 	// Try to connect repeatedly
 	connection: amqp.connection_state_t
 	connected:  bool
 	for !connected {
-		connection, connected = try_connect()
+		connection, connected = try_connect(user, pass, host, port)
 		time.sleep(2 * time.Second)
 	}
 	defer amqp.destroy_connection(connection)

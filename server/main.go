@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -36,14 +38,28 @@ var (
 	channel    *amqp.Channel
 )
 
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
 func main() {
+	rabbitUser := getEnv("RABBITMQ_USER", "guest")
+	rabbitPass := getEnv("RABBITMQ_PASS", "guest")
+	rabbitHost := getEnv("RABBITMQ_HOST", "rabbitmq")
+	rabbitPort := getEnv("RABBITMQ_PORT", "5672")
+
+	connectionURL := fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitUser, rabbitPass, rabbitHost, rabbitPort)
+
 	var err error
 
 	const retryDelay = 2 * time.Second
 
 	i := 0
 	for {
-		connection, err = amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
+		connection, err = amqp.Dial(connectionURL)
 		if err == nil {
 			log.Println("Connected to RabbitMQ successfully.")
 			break
