@@ -1,0 +1,3 @@
+FROM alpine:latest
+
+COPY model.json /model.json

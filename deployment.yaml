@@ -1,0 +1,228 @@
+# Predictor Server Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mnist-predictor-server-service
+  labels:
+    app: mnist-predictor-server
+spec:
+  type: ClusterIP 
+  selector:
+    app: mnist-predictor-server # Matches the label defined in the Deployment
+  ports:
+    - protocol: TCP
+      port: 80         # The port the service itself will listen on
+      targetPort: 8080 # The port on the Pod
+---
+# Predictor Server Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mnist-predictor-server-deployment
+  labels:
+    app: mnist-predictor-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mnist-predictor-server
+  template:
+    metadata:
+      labels:
+        app: mnist-predictor-server
+    spec:
+      containers:
+      - name: mnist-predictor-container
+        image: localhost:5000/mnist-predictor-server:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+# RabbitMQ Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  labels:
+    app: rabbitmq
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: management
+      port: 15672
+      targetPort: 15672
+  type: ClusterIP
+---
+# RabbitMQ Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  labels:
+    app: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:4-management
+        ports:
+        - containerPort: 5672
+          name: amqp
+        - containerPort: 15672
+          name: management
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: "guest"
+        - name: RABBITMQ_DEFAULT_PASS
+          value: "guest"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - ping
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - check_running
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: rabbitmq-data
+          mountPath: /var/lib/rabbitmq
+      volumes:
+      - name: rabbitmq-data
+        emptyDir: {}
+---
+# Model Persistent Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mnist-predictor-model-pv
+spec:
+  capacity:
+    storage: 10Mi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: /mnt/data/mnist-model
+    type: DirectoryOrCreate
+---
+# Model Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mnist-predictor-model-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  resources:
+    requests:
+      storage: 10Mi
+---
+# Predictor Worker Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mnist-predictor-worker-deployment
+  labels:
+    app: mnist-predictor-worker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mnist-predictor-worker
+  template:
+    metadata:
+      labels:
+        app: mnist-predictor-worker
+    spec:
+      initContainers:
+      - name: mnist-predictor-model-loader
+        image: localhost:5000/mnist-predictor-model-loader:latest
+        command: ['sh', '-c']
+        args:
+        - |
+          if [ ! -f /model-storage/model.json ]; then
+            echo "Loading model..."
+            cp /model.json /model-storage/
+            echo "Model loaded successfully"
+          else
+            echo "Model already exists, skipping load"
+          fi
+        volumeMounts:
+        - name: mnist-predictor-model-volume
+          mountPath: /model-storage
+      containers:
+      - name: mnist-predictor-worker-container
+        image: localhost:5000/mnist-predictor-worker:latest
+        volumeMounts:
+        - name: mnist-predictor-model-volume
+          mountPath: /model-storage
+          readOnly: true
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "1000m"
+          requests:
+            memory: "128Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "pgrep -f app || exit 1"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: mnist-predictor-model-volume
+        persistentVolumeClaim:
+          claimName: mnist-predictor-model-pvc
+      restartPolicy: Always
