@@ -97,8 +97,8 @@ func main() {
 	defer connection.Close()
 	defer channel.Close()
 
-	http.HandleFunc("/health",  healthHandler)
-	http.HandleFunc("/predict", predictHandler)
+	http.HandleFunc("/health",  enableCORS(healthHandler))
+	http.HandleFunc("/predict", enableCORS(predictHandler))
 
 	port := ":8080"
 	log.Printf("Starting MNIST prediction server on port %s\n", port)
@@ -253,4 +253,19 @@ func sendError(w http.ResponseWriter, statusCode int, message string) {
 		Error:   http.StatusText(statusCode),
 		Message: message,
 	})
+}
+
+func enableCORS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
+		next(w, r)
+	}
 }
