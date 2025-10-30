@@ -38,5 +38,8 @@ WORKDIR /app
 # Copy the binary from the build stage
 COPY --from=builder /app/app .
 
+# Copy the model file
+COPY model.json /app/model.json
+
 # Run the binary
 CMD ["./app"]

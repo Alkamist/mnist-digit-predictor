@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-worker
+  labels:
+    app: {{ .Release.Name }}-worker
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-worker
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-worker
+    spec:
+      containers:
+      - name: {{ .Release.Name }}-worker
+        image: {{ .Values.worker.image }}
+        resources:
+          limits:
+            memory: {{ .Values.worker.resources.limits.memory }}
+            cpu: {{ .Values.worker.resources.limits.cpu }}
+          requests:
+            memory: {{ .Values.worker.resources.requests.memory }}
+            cpu: {{ .Values.worker.resources.requests.cpu }}
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "pgrep -f app || exit 1"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+      restartPolicy: Always

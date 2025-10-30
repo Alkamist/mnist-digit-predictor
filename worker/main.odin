@@ -88,7 +88,7 @@ main :: proc() {
 	model = make_model()
 	defer destroy_model(model)
 
-	model_data, model_ok := os.read_entire_file("/model-storage/model.json")
+	model_data, model_ok := os.read_entire_file("./model.json")
 	log.assert(model_ok, "Failed to load model file")
 
 	unmarshal_err := json.unmarshal(model_data, &model)

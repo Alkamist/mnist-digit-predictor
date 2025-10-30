@@ -1,0 +1,29 @@
+server:
+  image: alkamist1/digit-image-predictor:server-0.1.0
+  replicaCount: 3
+  port: 80
+  podPort: 8080
+  healthPath: "/health"
+  serviceType: LoadBalancer
+  resources:
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+    requests:
+      memory: "64Mi"
+      cpu: "250m"
+
+worker:
+  image: alkamist1/digit-image-predictor:worker-0.1.0
+  replicaCount: 3
+  resources:
+    limits:
+      memory: "256Mi"
+      cpu: "1000m"
+    requests:
+      memory: "128Mi"
+      cpu: "500m"
+
+rabbitmq:
+  image: rabbitmq:4-management
+  replicaCount: 1
