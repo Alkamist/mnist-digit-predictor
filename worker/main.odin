@@ -13,8 +13,6 @@ import amqp "rabbitmq"
 import "ml"
 import "ml/mlp"
 
-HOST               :: "rabbitmq"
-PORT               :: 5672
 CHANNEL_ID         :: 1
 REQUEST_QUEUE_NAME :: "mnist_requests"
 
