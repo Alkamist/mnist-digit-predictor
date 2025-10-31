@@ -10,7 +10,7 @@ server:
   podPort: 8080
   healthPath: "/health"
   serviceType: LoadBalancer
-  runLocally: true
+  runLocally: false
   resources:
     limits:
       memory: "128Mi"
