@@ -9,7 +9,7 @@ server:
   port: 80
   podPort: 8080
   healthPath: "/health"
-  serviceType: LoadBalancer
+  serviceType: ClusterIP
   resources:
     limits:
       memory: "256Mi"
