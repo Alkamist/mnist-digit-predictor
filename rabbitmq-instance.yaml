@@ -7,8 +7,8 @@ spec:
   replicas: 1
   resources:
     requests:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 250m
+      memory: 256Mi
     limits:
-      cpu: 1000m
-      memory: 1Gi
+      cpu: 250m
+      memory: 256Gi

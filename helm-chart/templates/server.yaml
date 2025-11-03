@@ -37,8 +37,6 @@ spec:
         ports:
         - containerPort: {{ .Values.server.podPort }}
         env:
-        - name: RUN_LOCALLY
-          value: {{ .Values.server.runLocally | quote }}
         - name: RABBITMQ_HOST
           value: {{ .Values.rabbitmq.host | quote }}
         - name: RABBITMQ_PORT

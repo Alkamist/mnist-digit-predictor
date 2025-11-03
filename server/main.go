@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"time"
-	"strconv"
 	"context"
 	"encoding/json"
 
@@ -44,20 +43,6 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func getEnvBool(key string, defaultValue bool) bool {
-    valueStr := os.Getenv(key)
-    if valueStr == "" {
-        return defaultValue
-    }
-    
-    value, err := strconv.ParseBool(valueStr)
-    if err != nil {
-        return defaultValue
-    }
-    
-    return value
 }
 
 func main() {
@@ -112,15 +97,8 @@ func main() {
 	defer connection.Close()
 	defer channel.Close()
 
-	corsEnabled := getEnvBool("RUN_LOCALLY", false)
-
-	if corsEnabled {
-		http.HandleFunc("/health",  enableCORS(healthHandler))
-		http.HandleFunc("/predict", enableCORS(predictHandler))
-	} else {
-		http.HandleFunc("/health",  healthHandler)
-		http.HandleFunc("/predict", predictHandler)
-	}
+	http.HandleFunc("/health",  enableCORS(healthHandler))
+	http.HandleFunc("/predict", enableCORS(predictHandler))
 
 	port := ":8080"
 	log.Printf("Starting MNIST prediction server on port %s\n", port)
