@@ -4,7 +4,7 @@ rabbitmq:
   secretName: rabbitmq-default-user
 
 server:
-  image: alkamist1/digit-image-predictor:server-0.1.0
+  image: alkamist1/digit-image-predictor:server-0.1.1
   replicaCount: 1
   port: 80
   podPort: 8080
@@ -19,7 +19,7 @@ server:
       cpu: "100m"
 
 worker:
-  image: alkamist1/digit-image-predictor:worker-0.1.0
+  image: alkamist1/digit-image-predictor:worker-0.1.1
   replicaCount: 1
   resources:
     limits:
